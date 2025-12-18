@@ -1,0 +1,64 @@
+:root {
+  --bg: #0b0f14;
+  --bg-elev: #11161d;
+  --text: #e5e7eb;
+  --muted: #9aa0a6;
+  --primary: #7c3aed;
+  --primary-hover: #6d28d9;
+  --border: #1f2937;
+  --success: #10b981;
+  --danger: #ef4444;
+}
+* { box-sizing: border-box }
+html, body, #root { height: 100% }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji" }
+.app { display: flex; flex-direction: column; min-height: 100% }
+.header { position: sticky; top: 0; background: var(--bg-elev); border-bottom: 1px solid var(--border); z-index: 10 }
+.header-inner { max-width: 960px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 12px 16px }
+.brand { font-weight: 700 }
+.nav { display: flex; gap: 12px; align-items: center }
+.nav a { color: var(--text); text-decoration: none; padding: 8px 10px; border-radius: 8px }
+.nav a:hover { background: #0e1319 }
+.brand a { color: var(--text); text-decoration: none }
+.brand a:hover { color: var(--primary) }
+a { color: var(--text); }
+a:hover { color: var(--primary); }
+.link { color: var(--text); text-decoration: none }
+.link:hover { color: var(--primary) }
+.button { background: var(--primary); color: white; border: 0; border-radius: 8px; padding: 8px 12px; cursor: pointer }
+.button:hover { background: var(--primary-hover) }
+.button.ghost { background: transparent; border: 1px solid var(--border) }
+.button.block { display: block; width: 100% }
+.button.ghost.vote-active { border-color: var(--primary); color: var(--primary) }
+.button.danger { background: var(--danger) }
+.button.danger:hover { background: #dc2626 }
+.button:focus { outline: 2px solid var(--primary); outline-offset: 2px }
+.input:focus { outline: 2px solid var(--primary); outline-offset: 2px }
+.main { flex: 1; }
+.container { max-width: 960px; margin: 0 auto; padding: 16px }
+.card { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px }
+.card.auth-card { max-width: 420px; margin: 48px auto; padding: 24px }
+.auth-title { text-align: center }
+.auth-logo { display: block; width: 304px; height: 304px; object-fit: cover; border-radius: 8px; margin: 0 auto 12px auto; }
+.input { width: 100%; background: #0e1319; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px }
+.row { display: flex; gap: 12px; align-items: center }
+.space { height: 16px }
+.muted { color: var(--muted) }
+.post { display: grid; gap: 12px }
+.post-actions { display: flex; gap: 12px }
+.composer-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px }
+.comment-list { display: grid; gap: 12px }
+.comment-row { display: flex; gap: 12px; align-items: center; position: relative }
+.comment-menu-toggle { margin-left: auto; opacity: 0; transition: opacity 0.15s }
+.comment-row:hover .comment-menu-toggle { opacity: 1 }
+.error { color: var(--danger) }
+.success { color: var(--success) }
+.divider { height: 1px; background: var(--border); margin: 12px 0 }
+.section-title { font-size: 1.1rem; font-weight: 600 }
+@media (max-width: 640px) {
+  .header-inner { padding: 10px 12px }
+  .container { padding: 12px }
+}
+@media (min-width: 1024px) {
+  .container { max-width: 1024px }
+}

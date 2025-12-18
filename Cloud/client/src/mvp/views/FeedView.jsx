@@ -1,0 +1,200 @@
+import { useState, useEffect, useRef } from 'react'
+import useFeedPresenter from '../presenters/useFeedPresenter'
+import { Link } from 'react-router-dom'
+
+function PostItem({ post, onVote, onShare, onUpdate, onRemove, token, user, bumpComments }) {
+  const [showComments, setShowComments] = useState(false)
+  const [comments, setComments] = useState([])
+  const [hiddenIds, setHiddenIds] = useState([])
+  const [commentText, setCommentText] = useState('')
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editText, setEditText] = useState(post.content)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [openCommentId, setOpenCommentId] = useState(null)
+  const loadComments = async () => {
+    const svc = await import('../services/postService')
+    const r = await svc.listComments(token, post._id)
+    setComments(r)
+  }
+  const addComment = async () => {
+    const svc = await import('../services/postService')
+    const c = await svc.addComment(token, { postId: post._id, content: commentText })
+    setComments((prev) => [c, ...prev])
+    setCommentText('')
+    bumpComments(post._id)
+  }
+  const upvote = () => onVote(post._id, post.myVote === 1 ? 0 : 1)
+  const downvote = () => onVote(post._id, post.myVote === -1 ? 0 : -1)
+  const share = () => onShare(post._id)
+  const saveEdit = async () => {
+    await onUpdate(post._id, { content: editText })
+    setEditing(false)
+    setMenuOpen(false)
+  }
+  const removePost = async () => {
+    await onRemove(post._id)
+    setMenuOpen(false)
+  }
+  return (
+    <div className="card post">
+      <div className="row">
+        {post.author.avatarUrl && <img src={post.author.avatarUrl} alt="avatar" style={{ width: 28, height: 28, borderRadius: '50%' }} />}
+        <Link to={`/profile/${post.author._id}`} className="link">{post.author.username}</Link>
+        <span className="muted">• {new Date(post.createdAt).toLocaleString()}</span>
+        {user && user.id === post.author._id && (
+          <div style={{ marginLeft: 'auto', position: 'relative' }}>
+            <button className="button ghost" aria-label="Post options" onClick={() => setMenuOpen(!menuOpen)}>⋯</button>
+            {menuOpen && (
+              <div className="card" style={{ position: 'absolute', right: 0, top: '100%', minWidth: 180 }}>
+                {!editing ? (
+                  <div className="post">
+                    <button className="button" onClick={() => setEditing(true)}>Edit</button>
+                    <button className="button danger" onClick={() => setConfirmDelete(true)}>Delete</button>
+                  </div>
+                ) : (
+                  <div className="post">
+                    <input className="input" value={editText} onChange={(e) => setEditText(e.target.value)} />
+                    <div className="row">
+                <button className="button" onClick={saveEdit}>Save</button>
+                <button className="button ghost" onClick={() => setEditing(false)}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            {confirmDelete && (
+              <div className="card" style={{ position: 'absolute', right: 0, top: '100%', minWidth: 220 }}>
+                <div className="post">
+                  <div>Confirm delete?</div>
+                  <div className="row">
+                    <button className="button ghost" onClick={() => setConfirmDelete(false)}>Cancel</button>
+                    <button className="button" onClick={removePost}>Confirm</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      <div>{post.content}</div>
+      {post.imageUrl && (
+        <div>
+          <img src={post.imageUrl} alt="post" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)' }} />
+        </div>
+      )}
+      <div className="post-actions">
+        <button className={`button ghost ${post.myVote === 1 ? 'vote-active' : ''}`} onClick={upvote}>▲ {post.upvotes}</button>
+        <button className={`button ghost ${post.myVote === -1 ? 'vote-active' : ''}`} onClick={downvote}>▼ {post.downvotes}</button>
+        <button className="button ghost" onClick={share}>⤴ {post.sharesCount}</button>
+        <button className="button ghost"
+          onClick={() => {
+            const next = !showComments
+            setShowComments(next)
+            if (next) loadComments()
+          }}
+        >💬 {post.commentsCount}</button>
+      </div>
+      {showComments && (
+        <div className="comment-list">
+          {comments.filter((c) => !hiddenIds.includes(c._id)).map((c) => (
+            <div key={c._id} className="comment-row">
+              {c.author.avatarUrl && <img src={c.author.avatarUrl} alt="avatar" style={{ width: 24, height: 24, borderRadius: '50%' }} />}
+              <Link to={`/profile/${c.author._id}`} className="link">{c.author.username}</Link>
+              <span className="muted">{c.content}</span>
+              <div className="comment-menu-toggle" style={{ position: 'relative' }}>
+                <button className="button ghost" aria-label="Comment options" onClick={(e) => {
+                  e.stopPropagation()
+                  setOpenCommentId((prev) => (prev === c._id ? null : c._id))
+                }}>⋯</button>
+                {openCommentId === c._id && (
+                  <div className="card" style={{ position: 'absolute', right: 0, top: '100%', minWidth: 180 }}>
+                    <div className="post">
+                      <button className="button" onClick={() => setHiddenIds((prev) => [...prev, c._id])}>Hide</button>
+                      {user && user.id === c.author._id && (
+                        <button className="button danger" onClick={async () => {
+                          const svc = await import('../services/postService')
+                          await svc.deleteComment(token, c._id)
+                          setComments((prev) => prev.filter((x) => x._id !== c._id))
+                          setOpenCommentId(null)
+                        }}>Delete</button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+          <div className="row">
+            <input className="input" placeholder="Write a comment" value={commentText} onChange={(e) => setCommentText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && commentText.trim()) addComment() }} />
+            <button className="button" onClick={addComment}>Comment</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function FeedView({ token, user }) {
+  const { items, create, vote, share, update, remove, setItems } = useFeedPresenter(token)
+  const [content, setContent] = useState('')
+  const [file, setFile] = useState(null)
+  const [expanded, setExpanded] = useState(false)
+  const composerRef = useRef(null)
+  useEffect(() => {
+    const handler = (e) => {
+      if (composerRef.current && !composerRef.current.contains(e.target)) {
+        if (!content.trim() && !file) setExpanded(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [content, file])
+  const submit = async (e) => {
+    e.preventDefault()
+    if (!content.trim()) return
+    let imageUrl
+    if (file) {
+      const { uploadImage } = await import('../services/uploadService')
+      const r = await uploadImage(token, file, 'posts')
+      imageUrl = r.url
+    }
+    const p = await (async () => {
+      const svc = await import('../services/postService')
+      return svc.createPost(token, { content, imageUrl })
+    })()
+    setItems((prev) => [p, ...prev])
+    setContent('')
+    setFile(null)
+    setExpanded(false)
+  }
+  const bumpComments = (id) => {
+    setItems((prev) => prev.map((p) => (p._id === id ? { ...p, commentsCount: (p.commentsCount || 0) + 1 } : p)))
+  }
+  return (
+    <div className="container">
+      <div className="card post" ref={composerRef}>
+        <form onSubmit={submit} className="post" onClick={() => setExpanded(true)}>
+          <label htmlFor="composer-content" className="muted">Post content</label>
+          <input
+            id="composer-content"
+            className="input"
+            placeholder="Share your thoughts"
+            value={content}
+            onFocus={() => setExpanded(true)}
+            onChange={(e) => setContent(e.target.value)}
+          />
+          {expanded && (
+            <div className="composer-actions">
+              <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files[0] || null)} />
+              <button className="button" type="submit">Post</button>
+            </div>
+          )}
+        </form>
+      </div>
+      {items.map((p) => (
+        <PostItem key={p._id} post={p} onVote={vote} onShare={share} onUpdate={update} onRemove={remove} token={token} user={user} bumpComments={bumpComments} />
+      ))}
+    </div>
+  )
+}
