@@ -78,9 +78,17 @@ exports.vote = async (req, res) => {
 }
 
 exports.share = async (req, res) => {
-  const post = await Post.findByIdAndUpdate(req.params.id, { $inc: { sharesCount: 1 } }, { new: true })
-  if (!post) return res.status(404).json({ message: 'Not found' })
-  res.json({ sharesCount: post.sharesCount })
+  const original = await Post.findById(req.params.id)
+  if (!original) return res.status(404).json({ message: 'Not found' })
+  const existing = await Post.findOne({ author: req.user.id, sharedFrom: original._id })
+  if (existing) {
+    return res.json({ sharesCount: original.sharesCount, alreadyShared: true })
+  }
+  const shared = await Post.create({ author: req.user.id, content: original.content, imageUrl: original.imageUrl, sharedFrom: original._id })
+  await Post.findByIdAndUpdate(original._id, { $inc: { sharesCount: 1 } })
+  const populated = await Post.findById(shared._id).populate('author', 'username avatarUrl').lean()
+  const myVote = populated.votes.find((v) => String(v.user) === String(req.user.id))
+  res.json({ sharesCount: (original.sharesCount || 0) + 1, sharedPost: { ...populated, myVote: myVote ? myVote.value : 0 } })
 }
 
 exports.update = async (req, res) => {

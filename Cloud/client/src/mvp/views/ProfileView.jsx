@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import useProfilePresenter from '../presenters/useProfilePresenter'
 import { useState, useEffect } from 'react'
 import * as posts from '../services/postService'
@@ -24,6 +24,7 @@ export default function ProfileView({ token }) {
     await load()
   }
   const [avatarFile, setAvatarFile] = useState(null)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [myPosts, setMyPosts] = useState([])
   useEffect(() => {
     const loadPosts = async () => {
@@ -43,12 +44,40 @@ export default function ProfileView({ token }) {
     setAvatarFile(null)
   }
   if (!profile) return <div className="container"><div className="card">Loading…</div></div>
+  const formatRelative = (iso) => {
+    const t = new Date(iso).getTime()
+    const diff = Date.now() - t
+    if (diff < 60000) return 'Just now'
+    const m = Math.floor(diff / 60000)
+    if (m < 60) return m + 'm'
+    const h = Math.floor(m / 60)
+    if (h < 24) return h + 'h'
+    const d = Math.floor(h / 24)
+    if (d < 7) return d + 'd'
+    const w = Math.floor(d / 7)
+    return w + 'w'
+  }
   return (
     <div className="container">
       <div className="card">
         <h2>{profile.username}'s Profile</h2>
         <div className="space" />
-        {profile.avatarUrl && <img src={profile.avatarUrl} alt="avatar" style={{ width: 80, height: 80, borderRadius: '50%' }} />}
+        <div className="profile-header">
+          {profile.avatarUrl && <img src={profile.avatarUrl} alt="avatar" style={{ width: 80, height: 80, borderRadius: '50%' }} />}
+          {isMe && (
+            <div className="profile-menu-toggle" style={{ position: 'relative' }}>
+              <button className="button ghost" aria-label="Settings" onClick={() => setMenuOpen((x) => !x)}>⚙</button>
+              {menuOpen && (
+                <div className="card" style={{ position: 'absolute', right: 0, top: '100%', minWidth: 200 }}>
+                  <div className="post">
+                    <Link className="link" to="/settings?tab=profile">Profile Settings</Link>
+                    <Link className="link" to="/settings?tab=security">Security</Link>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         <div className="row"><span className="muted">Username</span>: {profile.username}</div>
         <div className="row"><span className="muted">Bio</span>: {profile.bio}</div>
         
@@ -64,7 +93,7 @@ export default function ProfileView({ token }) {
               <div key={p._id} className="post">
                 <div className="row">
                   {p.author.avatarUrl && <img src={p.author.avatarUrl} alt="avatar" style={{ width: 24, height: 24, borderRadius: '50%' }} />}
-                  <span className="muted">{new Date(p.createdAt).toLocaleString()}</span>
+                  <span className="muted">{formatRelative(p.createdAt)}</span>
                 </div>
                 <div>{p.content}</div>
                 {p.imageUrl && <img src={p.imageUrl} alt="post" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)' }} />}

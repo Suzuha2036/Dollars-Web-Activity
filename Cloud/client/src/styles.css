@@ -51,6 +51,10 @@ a:hover { color: var(--primary); }
 .comment-row { display: flex; gap: 12px; align-items: center; position: relative }
 .comment-menu-toggle { margin-left: auto; opacity: 0; transition: opacity 0.15s }
 .comment-row:hover .comment-menu-toggle { opacity: 1 }
+.comment-body { display: grid; gap: 6px; flex: 1 }
+.comment-meta { display: flex; gap: 8px; align-items: baseline }
+.profile-header { display: flex; gap: 12px; align-items: center }
+.profile-menu-toggle { margin-left: auto; opacity: 1; transition: opacity 0.15s }
 .error { color: var(--danger) }
 .success { color: var(--success) }
 .divider { height: 1px; background: var(--border); margin: 12px 0 }

@@ -15,11 +15,10 @@ export default function App() {
           <div className="header-inner">
             <div className="brand"><Link to="/" className="link">The Dollars</Link></div>
             <nav className="nav">
-              <Link to="/">Feed</Link>
+              <Link to="/">Home</Link>
               {auth.user ? (
                 <>
                   <Link to={`/profile/${auth.user.id}`} className="link">{auth.user.username}'s Profile</Link>
-                  <Link to="/settings" className="link">Settings</Link>
                   <button className="button ghost" onClick={auth.logout}>Logout</button>
                 </>
               ) : (

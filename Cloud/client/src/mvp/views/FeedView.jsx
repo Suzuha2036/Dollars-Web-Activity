@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import useFeedPresenter from '../presenters/useFeedPresenter'
 import { Link } from 'react-router-dom'
 
-function PostItem({ post, onVote, onShare, onUpdate, onRemove, token, user, bumpComments }) {
+function PostItem({ post, onVote, onShare, onUpdate, onRemove, onHide, token, user, bumpComments }) {
   const [showComments, setShowComments] = useState(false)
   const [comments, setComments] = useState([])
   const [hiddenIds, setHiddenIds] = useState([])
@@ -27,9 +27,26 @@ function PostItem({ post, onVote, onShare, onUpdate, onRemove, token, user, bump
   const upvote = () => onVote(post._id, post.myVote === 1 ? 0 : 1)
   const downvote = () => onVote(post._id, post.myVote === -1 ? 0 : -1)
   const share = () => onShare(post._id)
+  const formatRelative = (iso) => {
+    const t = new Date(iso).getTime()
+    const diff = Date.now() - t
+    if (diff < 60000) return 'Just now'
+    const m = Math.floor(diff / 60000)
+    if (m < 60) return m + 'm'
+    const h = Math.floor(m / 60)
+    if (h < 24) return h + 'h'
+    const d = Math.floor(h / 24)
+    if (d < 7) return d + 'd'
+    const w = Math.floor(d / 7)
+    return w + 'w'
+  }
   const saveEdit = async () => {
     await onUpdate(post._id, { content: editText })
     setEditing(false)
+    setMenuOpen(false)
+  }
+  const hidePost = () => {
+    onHide && onHide(post._id)
     setMenuOpen(false)
   }
   const removePost = async () => {
@@ -41,41 +58,45 @@ function PostItem({ post, onVote, onShare, onUpdate, onRemove, token, user, bump
       <div className="row">
         {post.author.avatarUrl && <img src={post.author.avatarUrl} alt="avatar" style={{ width: 28, height: 28, borderRadius: '50%' }} />}
         <Link to={`/profile/${post.author._id}`} className="link">{post.author.username}</Link>
-        <span className="muted">• {new Date(post.createdAt).toLocaleString()}</span>
-        {user && user.id === post.author._id && (
-          <div style={{ marginLeft: 'auto', position: 'relative' }}>
-            <button className="button ghost" aria-label="Post options" onClick={() => setMenuOpen(!menuOpen)}>⋯</button>
-            {menuOpen && (
-              <div className="card" style={{ position: 'absolute', right: 0, top: '100%', minWidth: 180 }}>
-                {!editing ? (
-                  <div className="post">
-                    <button className="button" onClick={() => setEditing(true)}>Edit</button>
-                    <button className="button danger" onClick={() => setConfirmDelete(true)}>Delete</button>
-                  </div>
-                ) : (
-                  <div className="post">
-                    <input className="input" value={editText} onChange={(e) => setEditText(e.target.value)} />
-                    <div className="row">
-                <button className="button" onClick={saveEdit}>Save</button>
-                <button className="button ghost" onClick={() => setEditing(false)}>Cancel</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            {confirmDelete && (
-              <div className="card" style={{ position: 'absolute', right: 0, top: '100%', minWidth: 220 }}>
+        <span className="muted">• {formatRelative(post.createdAt)}</span>
+        <div style={{ marginLeft: 'auto', position: 'relative' }}>
+          <button className="button ghost" aria-label="Post options" onClick={() => setMenuOpen(!menuOpen)}>⋯</button>
+          {menuOpen && (
+            <div className="card" style={{ position: 'absolute', right: 0, top: '100%', minWidth: 180 }}>
+              {!editing ? (
                 <div className="post">
-                  <div>Confirm delete?</div>
+                  {user && user.id === post.author._id ? (
+                    <>
+                      <button className="button" onClick={() => setEditing(true)}>Edit</button>
+                      <button className="button danger" onClick={() => setConfirmDelete(true)}>Delete</button>
+                    </>
+                  ) : (
+                    <button className="button" onClick={hidePost}>Hide</button>
+                  )}
+                </div>
+              ) : (
+                <div className="post">
+                  <input className="input" value={editText} onChange={(e) => setEditText(e.target.value)} />
                   <div className="row">
-                    <button className="button ghost" onClick={() => setConfirmDelete(false)}>Cancel</button>
-                    <button className="button" onClick={removePost}>Confirm</button>
+                    <button className="button" onClick={saveEdit}>Save</button>
+                    <button className="button ghost" onClick={() => setEditing(false)}>Cancel</button>
                   </div>
                 </div>
+              )}
+            </div>
+          )}
+          {confirmDelete && (
+            <div className="card" style={{ position: 'absolute', right: 0, top: '100%', minWidth: 220 }}>
+              <div className="post">
+                <div>Confirm delete?</div>
+                <div className="row">
+                  <button className="button ghost" onClick={() => setConfirmDelete(false)}>Cancel</button>
+                  <button className="button" onClick={removePost}>Confirm</button>
+                </div>
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
       <div>{post.content}</div>
       {post.imageUrl && (
@@ -86,7 +107,7 @@ function PostItem({ post, onVote, onShare, onUpdate, onRemove, token, user, bump
       <div className="post-actions">
         <button className={`button ghost ${post.myVote === 1 ? 'vote-active' : ''}`} onClick={upvote}>▲ {post.upvotes}</button>
         <button className={`button ghost ${post.myVote === -1 ? 'vote-active' : ''}`} onClick={downvote}>▼ {post.downvotes}</button>
-        <button className="button ghost" onClick={share}>⤴ {post.sharesCount}</button>
+        <button className="button ghost" onClick={share} disabled={post.sharedByMe}>⤴ {post.sharesCount}</button>
         <button className="button ghost"
           onClick={() => {
             const next = !showComments
@@ -100,8 +121,13 @@ function PostItem({ post, onVote, onShare, onUpdate, onRemove, token, user, bump
           {comments.filter((c) => !hiddenIds.includes(c._id)).map((c) => (
             <div key={c._id} className="comment-row">
               {c.author.avatarUrl && <img src={c.author.avatarUrl} alt="avatar" style={{ width: 24, height: 24, borderRadius: '50%' }} />}
-              <Link to={`/profile/${c.author._id}`} className="link">{c.author.username}</Link>
-              <span className="muted">{c.content}</span>
+              <div className="comment-body">
+                <div className="comment-meta">
+                  <Link to={`/profile/${c.author._id}`} className="link">{c.author.username}</Link>
+                  <span className="muted">• {formatRelative(c.createdAt)}</span>
+                </div>
+                <div className="muted">{c.content}</div>
+              </div>
               <div className="comment-menu-toggle" style={{ position: 'relative' }}>
                 <button className="button ghost" aria-label="Comment options" onClick={(e) => {
                   e.stopPropagation()
@@ -171,6 +197,9 @@ export default function FeedView({ token, user }) {
   const bumpComments = (id) => {
     setItems((prev) => prev.map((p) => (p._id === id ? { ...p, commentsCount: (p.commentsCount || 0) + 1 } : p)))
   }
+  const hidePost = (id) => {
+    setItems((prev) => prev.filter((p) => p._id !== id))
+  }
   return (
     <div className="container">
       <div className="card post" ref={composerRef}>
@@ -193,7 +222,7 @@ export default function FeedView({ token, user }) {
         </form>
       </div>
       {items.map((p) => (
-        <PostItem key={p._id} post={p} onVote={vote} onShare={share} onUpdate={update} onRemove={remove} token={token} user={user} bumpComments={bumpComments} />
+        <PostItem key={p._id} post={p} onVote={vote} onShare={share} onUpdate={update} onRemove={remove} onHide={hidePost} token={token} user={user} bumpComments={bumpComments} />
       ))}
     </div>
   )

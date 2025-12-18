@@ -1,13 +1,19 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import useProfilePresenter from '../presenters/useProfilePresenter'
 import * as users from '../services/userService'
 
 export default function SettingsView({ token, user, onDeleted }) {
   const { profile, load, updateMe, saving } = useProfilePresenter(token, user.id)
+  const [searchParams] = useSearchParams()
   const [tab, setTab] = useState('profile')
   const [username, setUsername] = useState('')
   const [bio, setBio] = useState('')
   const [avatarFile, setAvatarFile] = useState(null)
+  useEffect(() => {
+    const t = searchParams.get('tab')
+    if (t === 'security' || t === 'profile') setTab(t)
+  }, [searchParams])
   useEffect(() => {
     if (profile) {
       setUsername(profile.username || '')

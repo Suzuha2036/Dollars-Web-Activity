@@ -30,7 +30,10 @@ export default function useFeedPresenter(token) {
   }
   const share = async (id) => {
     const r = await posts.sharePost(token, id)
-    setItems((prev) => prev.map((p) => (p._id === id ? { ...p, sharesCount: r.sharesCount } : p)))
+    setItems((prev) => prev.map((p) => (p._id === id ? { ...p, sharesCount: r.sharesCount, sharedByMe: !!r.sharedPost || !!r.alreadyShared } : p)))
+    if (r.sharedPost) {
+      setItems((prev) => [r.sharedPost, ...prev])
+    }
   }
   const update = async (id, data) => {
     const p = await posts.updatePost(token, id, data)

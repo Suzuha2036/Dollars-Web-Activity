@@ -13,6 +13,7 @@ const schema = new mongoose.Schema(
     author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     content: { type: String, required: true },
     imageUrl: { type: String },
+    sharedFrom: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
     votes: [voteSchema],
     upvotes: { type: Number, default: 0 },
     downvotes: { type: Number, default: 0 },
