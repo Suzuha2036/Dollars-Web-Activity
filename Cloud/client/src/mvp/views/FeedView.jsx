@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import useFeedPresenter from '../presenters/useFeedPresenter'
 import { Link } from 'react-router-dom'
 
-function PostItem({ post, onVote, onShare, onUpdate, onRemove, onHide, token, user, bumpComments }) {
+export function PostItem({ post, onVote, onShare, onUpdate, onRemove, onHide, token, user, bumpComments }) {
   const [showComments, setShowComments] = useState(false)
   const [comments, setComments] = useState([])
   const [hiddenIds, setHiddenIds] = useState([])
@@ -12,6 +12,8 @@ function PostItem({ post, onVote, onShare, onUpdate, onRemove, onHide, token, us
   const [editText, setEditText] = useState(post.content)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [openCommentId, setOpenCommentId] = useState(null)
+  const [shareOpen, setShareOpen] = useState(false)
+  const [shareText, setShareText] = useState('')
   const loadComments = async () => {
     const svc = await import('../services/postService')
     const r = await svc.listComments(token, post._id)
@@ -26,7 +28,7 @@ function PostItem({ post, onVote, onShare, onUpdate, onRemove, onHide, token, us
   }
   const upvote = () => onVote(post._id, post.myVote === 1 ? 0 : 1)
   const downvote = () => onVote(post._id, post.myVote === -1 ? 0 : -1)
-  const share = () => onShare(post._id)
+  const share = () => setShareOpen(true)
   const formatRelative = (iso) => {
     const t = new Date(iso).getTime()
     const diff = Date.now() - t
@@ -85,37 +87,57 @@ function PostItem({ post, onVote, onShare, onUpdate, onRemove, onHide, token, us
               )}
             </div>
           )}
-          {confirmDelete && (
-            <div className="card" style={{ position: 'absolute', right: 0, top: '100%', minWidth: 220 }}>
-              <div className="post">
-                <div>Confirm delete?</div>
-                <div className="row">
-                  <button className="button ghost" onClick={() => setConfirmDelete(false)}>Cancel</button>
-                  <button className="button" onClick={removePost}>Confirm</button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
       <div>{post.content}</div>
-      {post.imageUrl && (
+      {post.imageUrl && !post.sharedFrom && (
         <div>
           <img src={post.imageUrl} alt="post" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)' }} />
         </div>
       )}
-      <div className="post-actions">
-        <button className={`button ghost ${post.myVote === 1 ? 'vote-active' : ''}`} onClick={upvote}>▲ {post.upvotes}</button>
-        <button className={`button ghost ${post.myVote === -1 ? 'vote-active' : ''}`} onClick={downvote}>▼ {post.downvotes}</button>
-        <button className="button ghost" onClick={share} disabled={post.sharedByMe}>⤴ {post.sharesCount}</button>
-        <button className="button ghost"
-          onClick={() => {
-            const next = !showComments
-            setShowComments(next)
-            if (next) loadComments()
-          }}
-        >💬 {post.commentsCount}</button>
-      </div>
+      {!post.sharedFrom && (
+        <div className="post-actions">
+          <button className={`button ghost ${post.myVote === 1 ? 'vote-active' : ''}`} onClick={upvote}>▲ {post.upvotes}</button>
+          <button className={`button ghost ${post.myVote === -1 ? 'vote-active' : ''}`} onClick={downvote}>▼ {post.downvotes}</button>
+          <button className="button ghost" onClick={share} disabled={post.sharedByMe}>⤴ {post.sharesCount}</button>
+          <button className="button ghost"
+            onClick={() => {
+              const next = !showComments
+              setShowComments(next)
+              if (next) loadComments()
+            }}
+          >💬 {post.commentsCount}</button>
+        </div>
+      )}
+      {post.sharedFrom && (
+        <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
+          <div className="row">
+            {post.sharedFrom.author?.avatarUrl && <img src={post.sharedFrom.author.avatarUrl} alt="avatar" style={{ width: 24, height: 24, borderRadius: '50%' }} />}
+            {post.sharedFrom.author && <Link to={`/profile/${post.sharedFrom.author._id}`} className="link">{post.sharedFrom.author.username}</Link>}
+          </div>
+          <div className="space" />
+          <div>{post.sharedFrom.content}</div>
+          {post.sharedFrom.imageUrl && (
+            <div style={{ marginTop: 8 }}>
+              <img src={post.sharedFrom.imageUrl} alt="shared-post" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)' }} />
+            </div>
+          )}
+        </div>
+      )}
+      {post.sharedFrom && (
+        <div className="post-actions">
+          <button className={`button ghost ${post.myVote === 1 ? 'vote-active' : ''}`} onClick={upvote}>▲ {post.upvotes}</button>
+          <button className={`button ghost ${post.myVote === -1 ? 'vote-active' : ''}`} onClick={downvote}>▼ {post.downvotes}</button>
+          <button className="button ghost" onClick={share} disabled={post.sharedByMe}>⤴ {post.sharesCount}</button>
+          <button className="button ghost"
+            onClick={() => {
+              const next = !showComments
+              setShowComments(next)
+              if (next) loadComments()
+            }}
+          >💬 {post.commentsCount}</button>
+        </div>
+      )}
       {showComments && (
         <div className="comment-list">
           {comments.filter((c) => !hiddenIds.includes(c._id)).map((c) => (
@@ -134,7 +156,7 @@ function PostItem({ post, onVote, onShare, onUpdate, onRemove, onHide, token, us
                   setOpenCommentId((prev) => (prev === c._id ? null : c._id))
                 }}>⋯</button>
                 {openCommentId === c._id && (
-                  <div className="card" style={{ position: 'absolute', right: 0, top: '100%', minWidth: 180 }}>
+                  <div className="card" style={{ position: 'absolute', right: 0, top: 'calc(100% + 4px)', minWidth: 180, zIndex: 50 }}>
                     <div className="post">
                       <button className="button" onClick={() => setHiddenIds((prev) => [...prev, c._id])}>Hide</button>
                       {user && user.id === c.author._id && (
@@ -154,6 +176,42 @@ function PostItem({ post, onVote, onShare, onUpdate, onRemove, onHide, token, us
           <div className="row">
             <input className="input" placeholder="Write a comment" value={commentText} onChange={(e) => setCommentText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && commentText.trim()) addComment() }} />
             <button className="button" onClick={addComment}>Comment</button>
+          </div>
+        </div>
+      )}
+      {shareOpen && (
+        <div className="modal-overlay" onClick={() => setShareOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div>Add a caption</div>
+            <input className="input" placeholder="Say something about this…" value={shareText} onChange={(e) => setShareText(e.target.value)} />
+            <div className="modal-actions">
+              <button className="button ghost" onClick={() => setShareOpen(false)}>Cancel</button>
+              <button className="button" onClick={async () => { await onShare(post._id, shareText); setShareOpen(false); setShareText('') }}>Share</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {editing && (
+        <div className="modal-overlay" onClick={() => setEditing(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div>Edit post</div>
+            <input className="input" value={editText} onChange={(e) => setEditText(e.target.value)} />
+            <div className="modal-actions">
+              <button className="button ghost" onClick={() => setEditing(false)}>Cancel</button>
+              <button className="button" onClick={saveEdit}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {confirmDelete && (
+        <div className="modal-overlay" onClick={() => setConfirmDelete(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div>Delete this post?</div>
+            <div className="muted">This action cannot be undone.</div>
+            <div className="modal-actions">
+              <button className="button ghost" onClick={() => setConfirmDelete(false)}>Cancel</button>
+              <button className="button danger" onClick={removePost}>Confirm delete</button>
+            </div>
           </div>
         </div>
       )}

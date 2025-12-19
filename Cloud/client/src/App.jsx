@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom'
+import { useState } from 'react'
 import useAuthPresenter from './mvp/presenters/useAuthPresenter'
 import FeedView from './mvp/views/FeedView'
 import LoginView from './mvp/views/LoginView'
@@ -8,6 +9,7 @@ import SettingsView from './mvp/views/SettingsView'
 
 export default function App() {
   const auth = useAuthPresenter()
+  const [confirmLogout, setConfirmLogout] = useState(false)
   return (
     <BrowserRouter>
       <div className="app">
@@ -19,7 +21,7 @@ export default function App() {
               {auth.user ? (
                 <>
                   <Link to={`/profile/${auth.user.id}`} className="link">{auth.user.username}'s Profile</Link>
-                  <button className="button ghost" onClick={auth.logout}>Logout</button>
+                  <button className="button ghost" onClick={() => setConfirmLogout(true)}>Logout</button>
                 </>
               ) : (
                 <>
@@ -41,6 +43,18 @@ export default function App() {
             </Routes>
           </div>
         </main>
+        {confirmLogout && (
+          <div className="modal-overlay" onClick={() => setConfirmLogout(false)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <div>Log out?</div>
+              <div className="muted">You will need to log in again to access your account.</div>
+              <div className="modal-actions">
+                <button className="button ghost" onClick={() => setConfirmLogout(false)}>Cancel</button>
+                <button className="button" onClick={() => { auth.logout(); setConfirmLogout(false) }}>Confirm</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </BrowserRouter>
   )

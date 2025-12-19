@@ -28,8 +28,8 @@ export default function useFeedPresenter(token) {
     const r = await posts.votePost(token, id, value)
     setItems((prev) => prev.map((p) => (p._id === id ? { ...p, upvotes: r.upvotes, downvotes: r.downvotes, myVote: r.myVote } : p)))
   }
-  const share = async (id) => {
-    const r = await posts.sharePost(token, id)
+  const share = async (id, caption = '') => {
+    const r = await posts.sharePost(token, id, caption)
     setItems((prev) => prev.map((p) => (p._id === id ? { ...p, sharesCount: r.sharesCount, sharedByMe: !!r.sharedPost || !!r.alreadyShared } : p)))
     if (r.sharedPost) {
       setItems((prev) => [r.sharedPost, ...prev])
@@ -40,8 +40,10 @@ export default function useFeedPresenter(token) {
     setItems((prev) => prev.map((x) => (x._id === id ? p : x)))
   }
   const remove = async (id) => {
-    await posts.deletePost(token, id)
-    setItems((prev) => prev.filter((x) => x._id !== id))
+    const r = await posts.deletePost(token, id)
+    setItems((prev) => prev
+      .filter((x) => x._id !== id)
+      .map((p) => (r.updatedShares && p._id === r.updatedShares.originalId ? { ...p, sharesCount: r.updatedShares.sharesCount } : p)))
   }
   return { items, loading, error, load, create, vote, share, update, remove, setItems }
 }

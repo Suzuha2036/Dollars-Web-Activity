@@ -3,6 +3,7 @@ import useProfilePresenter from '../presenters/useProfilePresenter'
 import { useState, useEffect } from 'react'
 import * as posts from '../services/postService'
 import * as users from '../services/userService'
+import { PostItem } from './FeedView'
 
 export default function ProfileView({ token }) {
   const { id } = useParams()
@@ -59,11 +60,13 @@ export default function ProfileView({ token }) {
   }
   return (
     <div className="container">
-      <div className="card">
-        <h2>{profile.username}'s Profile</h2>
-        <div className="space" />
+      <div className="card profile-card">
         <div className="profile-header">
           {profile.avatarUrl && <img src={profile.avatarUrl} alt="avatar" style={{ width: 80, height: 80, borderRadius: '50%' }} />}
+          <div className="profile-info">
+            <div className="profile-name">{profile.username}</div>
+            <div className="muted">{profile.bio}</div>
+          </div>
           {isMe && (
             <div className="profile-menu-toggle" style={{ position: 'relative' }}>
               <button className="button ghost" aria-label="Settings" onClick={() => setMenuOpen((x) => !x)}>⚙</button>
@@ -78,29 +81,49 @@ export default function ProfileView({ token }) {
             </div>
           )}
         </div>
-        <div className="row"><span className="muted">Username</span>: {profile.username}</div>
-        <div className="row"><span className="muted">Bio</span>: {profile.bio}</div>
-        
       </div>
-      <div className="card">
+      <div className="card profile-card">
         <h3>Recent Posts</h3>
         <div className="space" />
         {myPosts.length === 0 ? (
           <div className="muted">No posts yet</div>
         ) : (
-          <div className="post">
+          <div>
             {myPosts.map((p) => (
-              <div key={p._id} className="post">
-                <div className="row">
-                  {p.author.avatarUrl && <img src={p.author.avatarUrl} alt="avatar" style={{ width: 24, height: 24, borderRadius: '50%' }} />}
-                  <span className="muted">{formatRelative(p.createdAt)}</span>
-                </div>
-                <div>{p.content}</div>
-                {p.imageUrl && <img src={p.imageUrl} alt="post" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)' }} />}
-                <div className="post-actions">
-                  <span className="muted">▲ {p.upvotes} ▼ {p.downvotes} ⤴ {p.sharesCount} 💬 {p.commentsCount}</span>
-                </div>
-              </div>
+              <PostItem
+                key={p._id}
+                post={p}
+                token={token}
+                user={{ id: JSON.parse(atob(token.split('.')[1])).id }}
+                onVote={async (id, value) => {
+                  const r = await posts.votePost(token, id, value)
+                  setMyPosts((prev) => prev.map((x) => (x._id === id ? { ...x, upvotes: r.upvotes, downvotes: r.downvotes, myVote: r.myVote } : x)))
+                }}
+                onShare={async (id, caption = '') => {
+                  const r = await posts.sharePost(token, id, caption)
+                  setMyPosts((prev) => prev.map((x) => (x._id === id ? { ...x, sharesCount: r.sharesCount, sharedByMe: !!r.sharedPost || !!r.alreadyShared } : x)))
+                  const meId = JSON.parse(atob(token.split('.')[1])).id
+                  if (r.sharedPost && meId === profile.id) {
+                    setMyPosts((prev) => [r.sharedPost, ...prev])
+                  }
+                }}
+                onUpdate={async (id, data) => {
+                  const p2 = await posts.updatePost(token, id, data)
+                  setMyPosts((prev) => prev.map((x) => (x._id === id ? p2 : x)))
+                }}
+                onRemove={async (id) => {
+                  const r = await posts.deletePost(token, id)
+                  setMyPosts((prev) => prev
+                    .filter((x) => x._id !== id)
+                    .map((p) => (r.updatedShares && p._id === r.updatedShares.originalId ? { ...p, sharesCount: r.updatedShares.sharesCount } : p)))
+                }}
+                onHide={(id) => {
+                  setMyPosts((prev) => prev.filter((x) => x._id !== id))
+                }}
+                bumpComments={(id) => {
+                  setMyPosts((prev) => prev.map((x) => (x._id === id ? { ...x, commentsCount: (x.commentsCount || 0) + 1 } : x)))
+                }}
+              />
             ))}
           </div>
         )}

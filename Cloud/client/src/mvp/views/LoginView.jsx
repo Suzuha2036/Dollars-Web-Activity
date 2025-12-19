@@ -19,7 +19,6 @@ export default function LoginView({ auth }) {
     <div className="container">
       <div className="card auth-card">
         <img src="/logo.png" alt="logo" className="auth-logo" />
-        <h2 className="auth-title">Login</h2>
         <form onSubmit={submit} className="post">
           <label htmlFor="login-identifier" className="muted">Email or Username</label>
           <input id="login-identifier" className="input" value={email} onChange={(e) => setEmail(e.target.value)} />
