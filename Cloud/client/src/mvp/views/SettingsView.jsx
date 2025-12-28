@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, Link } from 'react-router-dom'
 import useProfilePresenter from '../presenters/useProfilePresenter'
 import * as users from '../services/userService'
 
@@ -10,6 +10,7 @@ export default function SettingsView({ token, user, onDeleted }) {
   const [username, setUsername] = useState('')
   const [bio, setBio] = useState('')
   const [avatarFile, setAvatarFile] = useState(null)
+  const [confirmSave, setConfirmSave] = useState(false)
   useEffect(() => {
     const t = searchParams.get('tab')
     if (t === 'security' || t === 'profile') setTab(t)
@@ -36,7 +37,10 @@ export default function SettingsView({ token, user, onDeleted }) {
   return (
     <div className="container">
       <div className="card">
-        <h2>Settings</h2>
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <Link className="button ghost" to={`/profile/${user.id}`}>← Back to profile</Link>
+          <h2>Settings</h2>
+        </div>
         <div className="space" />
         <div className="row">
           <button className={`button ghost ${tab === 'profile' ? 'vote-active' : ''}`} onClick={() => setTab('profile')}>Profile</button>
@@ -45,12 +49,12 @@ export default function SettingsView({ token, user, onDeleted }) {
         <div className="space" />
         {tab === 'profile' && (
           <>
-            <form onSubmit={submit} className="post">
+            <form className="post">
               <label htmlFor="settings-username" className="muted">Display name</label>
               <input id="settings-username" className="input" value={username} onChange={(e) => setUsername(e.target.value)} />
               <label htmlFor="settings-bio" className="muted">Bio</label>
               <input id="settings-bio" className="input" value={bio} onChange={(e) => setBio(e.target.value)} />
-              <button className="button block" type="submit" disabled={saving}>Save changes</button>
+              <button className="button block" type="button" disabled={saving} onClick={() => setConfirmSave(true)}>Save changes</button>
             </form>
             <div className="divider" />
             <div className="post">
@@ -58,6 +62,18 @@ export default function SettingsView({ token, user, onDeleted }) {
               <input id="settings-avatar" type="file" accept="image/*" onChange={(e) => setAvatarFile(e.target.files[0] || null)} />
               <button className="button" onClick={uploadAvatar} disabled={!avatarFile}>Update avatar</button>
             </div>
+            {confirmSave && (
+              <div className="modal-overlay" onClick={() => setConfirmSave(false)}>
+                <div className="modal" onClick={(e) => e.stopPropagation()}>
+                  <div>Save changes?</div>
+                  <div className="muted">This will update your profile information.</div>
+                  <div className="modal-actions">
+                    <button className="button ghost" onClick={() => setConfirmSave(false)}>Cancel</button>
+                    <button className="button" onClick={async () => { await submit(new Event('submit')); setConfirmSave(false) }}>Confirm</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
         {tab === 'security' && (
@@ -74,6 +90,7 @@ function SecuritySettings({ token, onDeleted }) {
   const [confirm, setConfirm] = useState('')
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
+  const [confirmChange, setConfirmChange] = useState(false)
   const change = async () => {
     setErr(''); setMsg('')
     if (!currentPassword || !newPassword || !confirm) { setErr('Fill all fields'); return }
@@ -103,13 +120,31 @@ function SecuritySettings({ token, onDeleted }) {
       <input id="settings-new-password" className="input" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
       <label htmlFor="settings-confirm-password" className="muted">Confirm new password</label>
       <input id="settings-confirm-password" className="input" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-      <button className="button block" onClick={change}>Change password</button>
+      <button className="button block" onClick={() => setConfirmChange(true)}>Change password</button>
       <div className="divider" />
       <button className="button danger" onClick={() => setConfirmDelete(true)}>Delete account</button>
+      {confirmChange && (
+        <div className="modal-overlay" onClick={() => setConfirmChange(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div>Change password?</div>
+            <div className="muted">You will need to log in again on other devices.</div>
+            <div className="modal-actions">
+              <button className="button ghost" onClick={() => setConfirmChange(false)}>Cancel</button>
+              <button className="button" onClick={async () => { await change(); setConfirmChange(false) }}>Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
       {confirmDelete && (
-        <div className="row">
-          <button className="button ghost" onClick={() => setConfirmDelete(false)}>Cancel</button>
-          <button className="button danger" onClick={remove}>Confirm delete</button>
+        <div className="modal-overlay" onClick={() => setConfirmDelete(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div>Delete your account?</div>
+            <div className="muted">This will permanently remove your posts and comments.</div>
+            <div className="modal-actions">
+              <button className="button ghost" onClick={() => setConfirmDelete(false)}>Cancel</button>
+              <button className="button danger" onClick={remove}>Confirm delete</button>
+            </div>
+          </div>
         </div>
       )}
       {msg && <div className="success">{msg}</div>}

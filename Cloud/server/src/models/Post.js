@@ -11,7 +11,7 @@ const voteSchema = new mongoose.Schema(
 const schema = new mongoose.Schema(
   {
     author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    content: { type: String, required: true },
+    content: { type: String, required: function () { return !this.sharedFrom } },
     imageUrl: { type: String },
     sharedFrom: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
     votes: [voteSchema],

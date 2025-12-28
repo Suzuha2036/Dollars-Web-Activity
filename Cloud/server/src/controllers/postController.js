@@ -15,6 +15,7 @@ exports.feed = async (req, res) => {
     .skip((page - 1) * limit)
     .limit(limit)
     .populate('author', 'username avatarUrl')
+    .populate({ path: 'sharedFrom', select: 'author content imageUrl', populate: { path: 'author', select: 'username avatarUrl' } })
     .lean()
   const userId = req.user ? req.user.id : null
   const enriched = posts.map((p) => {
@@ -29,6 +30,7 @@ exports.listByAuthor = async (req, res) => {
   const posts = await Post.find({ author: id })
     .sort({ createdAt: -1 })
     .populate('author', 'username avatarUrl')
+    .populate({ path: 'sharedFrom', select: 'author content imageUrl', populate: { path: 'author', select: 'username avatarUrl' } })
     .lean()
   const userId = req.user ? req.user.id : null
   const enriched = posts.map((p) => {
@@ -39,7 +41,10 @@ exports.listByAuthor = async (req, res) => {
 }
 
 exports.get = async (req, res) => {
-  const post = await Post.findById(req.params.id).populate('author', 'username avatarUrl').lean()
+  const post = await Post.findById(req.params.id)
+    .populate('author', 'username avatarUrl')
+    .populate({ path: 'sharedFrom', select: 'author content imageUrl', populate: { path: 'author', select: 'username avatarUrl' } })
+    .lean()
   if (!post) return res.status(404).json({ message: 'Not found' })
   res.json(post)
 }
@@ -84,9 +89,13 @@ exports.share = async (req, res) => {
   if (existing) {
     return res.json({ sharesCount: original.sharesCount, alreadyShared: true })
   }
-  const shared = await Post.create({ author: req.user.id, content: original.content, imageUrl: original.imageUrl, sharedFrom: original._id })
+  const { caption } = req.body || {}
+  const shared = await Post.create({ author: req.user.id, content: caption || '', sharedFrom: original._id })
   await Post.findByIdAndUpdate(original._id, { $inc: { sharesCount: 1 } })
-  const populated = await Post.findById(shared._id).populate('author', 'username avatarUrl').lean()
+  const populated = await Post.findById(shared._id)
+    .populate('author', 'username avatarUrl')
+    .populate({ path: 'sharedFrom', select: 'author content imageUrl', populate: { path: 'author', select: 'username avatarUrl' } })
+    .lean()
   const myVote = populated.votes.find((v) => String(v.user) === String(req.user.id))
   res.json({ sharesCount: (original.sharesCount || 0) + 1, sharedPost: { ...populated, myVote: myVote ? myVote.value : 0 } })
 }
@@ -99,7 +108,10 @@ exports.update = async (req, res) => {
   if (content !== undefined) post.content = content
   if (imageUrl !== undefined) post.imageUrl = imageUrl
   await post.save()
-  const populated = await Post.findById(post._id).populate('author', 'username avatarUrl').lean()
+  const populated = await Post.findById(post._id)
+    .populate('author', 'username avatarUrl')
+    .populate({ path: 'sharedFrom', select: 'author content imageUrl', populate: { path: 'author', select: 'username avatarUrl' } })
+    .lean()
   const myVote = populated.votes.find((v) => String(v.user) === String(req.user.id))
   res.json({ ...populated, myVote: myVote ? myVote.value : 0 })
 }
@@ -108,7 +120,17 @@ exports.remove = async (req, res) => {
   const post = await Post.findById(req.params.id)
   if (!post) return res.status(404).json({ message: 'Not found' })
   if (String(post.author) !== String(req.user.id)) return res.status(403).json({ message: 'Forbidden' })
+  let updatedShares = null
+  if (post.sharedFrom) {
+    const original = await Post.findById(post.sharedFrom)
+    if (original) {
+      const next = Math.max(0, (original.sharesCount || 0) - 1)
+      original.sharesCount = next
+      await original.save()
+      updatedShares = { originalId: original._id, sharesCount: next }
+    }
+  }
   await Comment.deleteMany({ post: post._id })
   await Post.deleteOne({ _id: post._id })
-  res.json({ ok: true })
+  res.json({ ok: true, updatedShares })
 }
